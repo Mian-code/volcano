@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Interactive 3D volcanic desert ecosystem world." />
+    <title>Volcanic Desert Ecosystem</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header id="titlebar">
+      <h1>VOLCANIC DESERT ECOSYSTEM</h1>
+      <p>Interactive Ecosystem Explorer</p>
+    </header>
+
+    <section id="info-panel" class="hidden" aria-hidden="true">
+      <button id="close-btn" aria-label="Close">&times;</button>
+      <div id="factor-category">BIOTIC FACTOR</div>
+      <h2 id="factor-title">Title</h2>
+      <p id="factor-description"></p>
+    </section>
+
+    <div id="hint">Drag to orbit the world &bull; Scroll to zoom</div>
+
+    <div id="hint">Drag to orbit the world &bull; Scroll to zoom</div>
+
+    <div id="scene"></div>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
