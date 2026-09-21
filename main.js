@@ -4,7 +4,32 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 // ============================================================
 // ECOSYSTEM FACTOR DATA (centralized, easy to expand)
 // ============================================================
-const ecosystemFactors = [];
+// Each factor: id, title, category, description. To add a new ecosystem
+// factor, append an entry here AND assign userData.factorId on its group —
+// no other interaction wiring is required.
+const ecosystemFactors = [
+  {
+    id: "volcano",
+    title: "Volcano",
+    category: "Abiotic",
+    description:
+      "A massive quaking cone of molten rock at the heart of the desert. Active fissures paint the slopes with rivers of fresh lava, shaping the land and feeding the vents around it."
+  },
+  {
+    id: "volcanicVent",
+    title: "Volcanic Vent",
+    category: "Abiotic",
+    description:
+      "A smoking fissure where superheated gases and minerals escape from beneath the planet's crust — a raw outlet of the ecosystem's hidden geothermal energy."
+  },
+  {
+    id: "lichens",
+    title: "Lichens",
+    category: "Biotic",
+    description:
+      "Hardy mutualistic organisms clinging to the warm rocks. Among the first living pioneers, they slowly break bare stone down into soil, preparing the ground for more life."
+  }
+];
 
 const factorById = Object.fromEntries(ecosystemFactors.map((f) => [f.id, f]));
 
@@ -1638,6 +1663,34 @@ function startFocusAnim(fromPos, toPos, fromTarget, toTarget) {
   controls.enableDamping = false; // avoid fighting the programmatic animation
 }
 
+// ============================================================
+// INFO PANEL
+// ============================================================
+const factorTitleEl = document.getElementById("factor-title");
+const factorCategoryEl = document.getElementById("factor-category");
+const factorDescriptionEl = document.getElementById("factor-description");
+const infoPanelEl = document.getElementById("info-panel");
+const closeBtnEl = document.getElementById("close-btn");
+
+function openInfoPanel(factorId) {
+  const f = factorById[factorId];
+  if (!f) return;
+  factorTitleEl.textContent = f.title;
+  factorCategoryEl.textContent = f.category.toUpperCase() + " FACTOR";
+  factorDescriptionEl.textContent = f.description;
+  infoPanelEl.classList.remove("hidden");
+  infoPanelEl.setAttribute("aria-hidden", "false");
+}
+
+function closeInfoPanel() {
+  infoPanelEl.classList.add("hidden");
+  infoPanelEl.setAttribute("aria-hidden", "true");
+}
+
+// Close (X): hide panel only. Camera focus is deliberately untouched so the
+// visitor stays looking at the factor and OrbitControls keeps working.
+closeBtnEl.addEventListener("click", closeInfoPanel);
+
 function toggleFocus(group) {
   const target = factorTargets.find(
     (t) => t.group === group && t.factorId === group.userData.factorId
@@ -1654,6 +1707,7 @@ function toggleFocus(group) {
     startFocusAnim(camera.position, toPos, controls.target, target.focusPoint.clone());
     focusState.active = true;
     focusState.targetGroup = group;
+    openInfoPanel(group.userData.factorId);
   } else {
     const saved = focusState.saved;
     startFocusAnim(camera.position, saved.pos, controls.target, saved.target);
