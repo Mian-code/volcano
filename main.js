@@ -28,6 +28,34 @@ const ecosystemFactors = [
     category: "Biotic",
     description:
       "Hardy mutualistic organisms clinging to the warm rocks. Among the first living pioneers, they slowly break bare stone down into soil, preparing the ground for more life."
+  },
+  {
+    id: "mosses",
+    title: "Mosses",
+    category: "Biotic",
+    description:
+      "Soft green cushions tucked into sheltered hollows. They hold precious moisture against the burning rocks, letting dense patchy growth take root wherever the heat loosens its grip."
+  },
+  {
+    id: "microbes",
+    title: "Microbial Colonies",
+    category: "Biotic",
+    description:
+      "Tiny extremophile bacteria and archaea that thrive in the steam-warm crevices near vents and lava. Invisible to the naked eye, they form the chemical bedrock of the whole web of life."
+  },
+  {
+    id: "lavaCrickets",
+    title: "Lava Crickets",
+    category: "Biotic",
+    description:
+      "Heat-hardy crickets that hop across the scorched rocks beside the hot zones. Their black chitin lets them blend into the dark cinders while they graze on algae and tiny lichens."
+  },
+  {
+    id: "volcanicLongicornBeetles",
+    title: "Volcanic Longicorn Beetles",
+    category: "Biotic",
+    description:
+      "Long-horned wood-boring beetles drawn to the warm spent timber left by lava flows. Their sweeping antennae sense heat and smoke from afar, guiding them to burnt trees where they raise their young."
   }
 ];
 
@@ -119,7 +147,20 @@ const WORLD_RADIUS = 28;
 // Volcano integration proportions (non-uniform: height boosted, width kept)
 const VOLCANO_BASE_SCALE = 0.55;
 const VOLCANO_HEIGHT_SCALE = VOLCANO_BASE_SCALE * 1.7;
-const VOLCANO_BASE_Y = WORLD_RADIUS - 1.0;
+const VOLCANO_BASE_Y = terrainHeightAt(0, 1, 0) - 0.3;
+
+function terrainHeightAt(nx, ny, nz) {
+  const base =
+    Math.sin(nx * 7 + ny * 3) * 0.5 +
+    Math.sin(ny * 5 + nz * 8) * 0.5 +
+    Math.sin(nz * 6 + nx * 4) * 0.5;
+  const coarse =
+    Math.sin(nx * 3 + 1.7) * Math.sin(ny * 3) * Math.sin(nz * 3 + 0.6);
+  const fine =
+    Math.sin(nx * 14 + 2.1) * 0.5 + Math.sin(ny * 12 + 1.2) * 0.5;
+  const bump = (base * 0.28 + coarse * 0.26 + fine * 0.18) * 0.75 + 0.5;
+  return WORLD_RADIUS * (1.0 + THREE.MathUtils.clamp(bump, 0, 1) * 0.14);
+}
 
 function mountDirection(fx, fz) {
   return new THREE.Vector3(fx, 14, fz).normalize();
@@ -127,14 +168,76 @@ function mountDirection(fx, fz) {
 
 function mountOnSphere(group, fx, fz, spinY = 0) {
   const dir = mountDirection(fx, fz);
-  group.position.copy(dir).multiplyScalar(WORLD_RADIUS);
+  group.position
+    .copy(dir)
+    .multiplyScalar(terrainHeightAt(dir.x, dir.y, dir.z) - 0.4);
   group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
   group.rotateY(spinY);
 }
 
+function mountOnWorldSphere(group, dir, spinY = 0) {
+  group.position
+    .copy(dir)
+    .multiplyScalar(terrainHeightAt(dir.x, dir.y, dir.z) - 0.4);
+  group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  group.rotateY(spinY);
+}
+
+function randomWorldDirection(existingDirs, minDot) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const u = Math.random() * 2 - 1;
+    const t = Math.random() * Math.PI * 2;
+    const dir = new THREE.Vector3(
+      Math.sqrt(1 - u * u) * Math.cos(t),
+      u,
+      Math.sqrt(1 - u * u) * Math.sin(t)
+    );
+    // Keep clear of the volcano cap at the north pole.
+    if (dir.y > 0.9) continue;
+    let tooClose = false;
+    for (const d of existingDirs) {
+      if (dir.dot(d) > minDot) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (!tooClose) return dir;
+  }
+  return null;
+}
+
 function createTerrain() {
+  const terrainGeo = new THREE.SphereGeometry(WORLD_RADIUS, 96, 64);
+  const tPos = terrainGeo.attributes.position;
+
+  for (let i = 0; i < tPos.count; i++) {
+    const x = tPos.getX(i);
+    const y = tPos.getY(i);
+    const z = tPos.getZ(i);
+    const r = Math.sqrt(x * x + y * y + z * z);
+    const nx = x / r;
+    const ny = y / r;
+    const nz = z / r;
+
+    const base =
+      Math.sin(nx * 7 + ny * 3) * 0.5 +
+      Math.sin(ny * 5 + nz * 8) * 0.5 +
+      Math.sin(nz * 6 + nx * 4) * 0.5;
+    const coarse =
+      Math.sin(nx * 3 + 1.7) * Math.sin(ny * 3) * Math.sin(nz * 3 + 0.6);
+    const fine =
+      Math.sin(nx * 14 + 2.1) * 0.5 + Math.sin(ny * 12 + 1.2) * 0.5;
+    const bump =
+      (base * 0.28 + coarse * 0.26 + fine * 0.18) * 0.75 + 0.5;
+
+    const rad = r * (1.0 + THREE.MathUtils.clamp(bump, 0, 1) * 0.14);
+    tPos.setXYZ(i, nx * rad, ny * rad, nz * rad);
+  }
+
+  terrainGeo.computeVertexNormals();
+
   const sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(WORLD_RADIUS, 48, 36),
+    terrainGeo,
     material(0x2a2118)
   );
   sphere.receiveShadow = true;
@@ -584,6 +687,7 @@ function createVolcano() {
   );
 
   volcanoGroup.add(craterLight);
+  volcanoCraterLight = craterLight;
 
   return volcanoGroup;
 }
@@ -1558,6 +1662,244 @@ function updateRocket() {
 }
 
 // ============================================================
+// FACTOR PLACEMENT (scatter helper)
+// ============================================================
+// Scatter clones of a builder output around the planet with a
+// min-distance check so nothing sinks through its neighbor.
+// Every clone is tagged with the factorId and mounted as its own
+// factor target — the single existing raycaster handles them all.
+const scatterMemory = [];
+
+function mountScatterAt(group, fx, fz, yBias, spinY) {
+  mountOnSphere(group, fx, fz, spinY);
+  return group;
+}
+
+function clearOfScatter(targetDir, minDist) {
+  for (const mem of scatterMemory) {
+    if (targetDir.distanceToSquared(mem) < minDist * minDist) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function scatterOnPlanet(builder, count, opts = {}) {
+  const {
+    fxMin = -24,
+    fxMax = 13,
+    fzMin = -16,
+    fzMax = 18,
+    minDist = 4.2,
+    yBias = 0.9,
+    spinY = 0,
+    anchorX = 0,
+    anchorZ = 0,
+    clusterRadius = 0,
+    focusDistance,
+    spacer = 0
+  } = opts;
+  let placedCount = 0;
+
+  for (let attempt = 0; attempt < count * 30 && placedCount < count; attempt++) {
+    const fx =
+      anchorX +
+      (clusterRadius > 0
+        ? (Math.random() - 0.5) * 2 * clusterRadius
+        : random(fxMin, fxMax));
+    const fz =
+      anchorZ +
+      (clusterRadius > 0
+        ? (Math.random() - 0.5) * 2 * clusterRadius
+        : random(fzMin, fzMax));
+
+    const dir = mountDirection(fx, fz);
+    if (!clearOfScatter(dir, minDist)) continue;
+
+    const group = builder();
+    group.userData.factorId = factorIdFor(group);
+
+    const ventSpin =
+      spinY === 0 ? random(0, Math.PI * 2) : spinY;
+
+    mountScatterAt(group, fx, fz, yBias, ventSpinHelix ?? ventSpin);
+
+    if (spacer) group.position.multiplyScalar(1 + spacer);
+    scatterMemory.push(dir);
+    scene.add(groupGenerator ? group : group);
+    registerFactorTarget(group, null, focusDistance);
+    placedCount++;
+  }
+
+  return placedCount;
+}
+
+function createMosses() {
+  const mossGroup = new THREE.Group();
+  const rockMat = new THREE.MeshStandardMaterial({
+    color: 0x413c32,
+    roughness: 0.95,
+    flatShading: true
+  });
+  const mossMaterials = [
+    new THREE.MeshStandardMaterial({ color: 0x577a3a, roughness: 0.9, flatShading: true }),
+    new THREE.MeshStandardMaterial({ color: 0x6b8f45, roughness: 0.9, flatShading: true }),
+    new THREE.MeshStandardMaterial({ color: 0x46652e, roughness: 0.95, flatShading: true }),
+    new THREE.MeshStandardMaterial({ color: 0x7ca04f, roughness: 0.85, flatShading: true })
+  ];
+
+  const rock = new THREE.Mesh(
+    new THREE.DodecahedronGeometry(1.3, 1),
+    rockMat
+  );
+  rock.scale.y = 0.55;
+  rock.position.y = 0.15;
+  // Sink the rock base slightly into the planet so it hugs the curved
+  // surface rather than resting on the tangent plane.
+  rock.position.y = 0.1;
+  mossGroup.add(rock);
+
+  for (let i = 0; i < 12; i++) {
+    const button = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3 + Math.random() * 0.45, 10, 8),
+      mossMaterials[Math.floor(Math.random() * mossMaterials.length)]
+    );
+    button.scale.y = 0.35;
+    button.position.set(
+      (Math.random() - 0.5) * 2.0,
+      0.35 + Math.random() * 0.25,
+      (Math.random() - 0.5) * 2.0
+    );
+    mossGroup.add(button);
+  }
+
+  mossGroup.userData.factorId = "mosses";
+  mossGroup.userData.slideId = "mosses";
+  return mossGroup;
+}
+
+function createMicrobes() {
+  const microbeGroup = new THREE.Group();
+
+  const glowMaterials = [
+    new THREE.MeshStandardMaterial({
+      color: 0x66ffaa,
+      emissive: 0x33cc77,
+      emissiveIntensity: 0.9,
+      roughness: 0.4,
+      flatShading: true
+    }),
+    new THREE.MeshStandardMaterial({
+      color: 0x88ffbb,
+      emissive: 0x44ddaa,
+      emissiveIntensity: 0.9,
+      roughness: 0.4,
+      flatShading: true
+    }),
+    new THREE.MeshStandardMaterial({
+      color: 0x55dd88,
+      emissive: 0x2a9944,
+      emissiveIntensity: 0.9,
+      roughness: 0.4,
+      flatShading: true
+    })
+  ];
+
+  for (let i = 0; i < 26; i++) {
+    const blob = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12 + Math.random() * 0.3, 8, 6),
+      glowMaterials[Math.floor(Math.random() * glowMaterials.length)]
+    );
+    blob.position.set(
+      (Math.random() - 0.5) * 1.8,
+      (Math.random() - 0.5) * 0.3 + 1,
+      (Math.random() - 0.5) * 1.8
+    );
+    microbeGroup.add(blob);
+  }
+
+  microbeGroup.userData.factorId = "microbes";
+  microbeGroup.userData.slideId = "microbes";
+  return microbeGroup;
+}
+
+function createLavaCrickets() {
+  const cricketGroup = new THREE.Group();
+  const chitinMat = new THREE.MeshStandardMaterial({
+    color: 0x1a1a1f,
+    roughness: 0.6,
+    metalness: 0.3,
+    flatShading: true
+  });
+
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(0.4, 10, 8),
+    chitinMat
+  );
+  body.scale.set(1.3, 0.8, 1);
+  body.position.y = 0.35;
+  cricketGroup.add(body);
+
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.24, 8, 6),
+    chitinMat
+  );
+  head.position.set(0.42, 0.42, 0);
+  cricketGroup.add(head);
+
+  const jumpLegs = new THREE.Mesh(
+    new THREE.BoxGeometry(0.05, 0.5, 0.05),
+    chitinMat
+  );
+  jumpLegs.position.set(0.15, 0.1, 0.28);
+  cricketGroup.add(jumpLegs);
+
+  cricketGroup.userData.factorId = "lavaCrickets";
+  cricketGroup.userData.slideId = "lavaCrickets";
+  return cricketGroup;
+}
+
+function createVolcanicLongicornBeetles() {
+  const beetleGroup = new THREE.Group();
+  const shellMat = new THREE.MeshStandardMaterial({
+    color: 0x3a1206,
+    roughness: 0.35,
+    metalness: 0.5,
+    flatShading: true
+  });
+
+  const shell = new THREE.Mesh(
+    new THREE.SphereGeometry(0.45, 10, 8),
+    shellMat
+  );
+  shell.scale.set(1.1, 0.7, 0.75);
+  shell.position.y = 0.3;
+  beetleGroup.add(shell);
+
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.2, 8, 6),
+    shellMat
+  );
+  head.position.set(0.42, 0.32, 0);
+  beetleGroup.add(head);
+
+  // Long sweeping antennae — the signature longicorn look.
+  for (let side = -1; side <= 1; side += 2) {
+    const antenna = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.05, 0.7, 6),
+      shellMat
+    );
+    antenna.position.set(0.42, 0.55, side * 0.28);
+    antenna.rotation.x = side * -0.7;
+    antenna.rotation.z = side * 0.5;
+    beetleGroup.add(antenna);
+  }
+
+  beetleGroup.userData.factorId = "volcanicLongicornBeetles";
+  beetleGroup.userData.slideId = "volcanicLongicornBeetles";
+  return beetleGroup;
+}
+// ============================================================
 // FACTOR INTERACTION (single raycast + smooth camera focus)
 // ============================================================
 const raycaster = new THREE.Raycaster();
@@ -1722,9 +2064,25 @@ function toggleFocus(group) {
 // ============================================================
 const clock = new THREE.Clock();
 
+let volcanoLavaTex = null;
+let volcanoCraterLight = null;
+let volcanoPulseTime = 0;
+
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
+
+  if (volcanoLavaTex) {
+    volcanoLavaTex.offset.y -= dt * 0.3;
+  }
+
+  if (volcanoCraterLight) {
+    volcanoPulseTime += dt;
+    volcanoCraterLight.intensity =
+      4.5 +
+      Math.sin(volcanoPulseTime * 4.0) * 0.4 +
+      Math.cos(volcanoPulseTime * 7.0) * 0.3;
+  }
 
   if (focusState.animating) {
     focusState.t += dt / focusState.duration;
@@ -1761,21 +2119,62 @@ volcanicVent.userData.factorId = "volcanicVent";
 volcanicVent.userData.slideId = "volcanicVent";
 volcanicVent.scale.setScalar(1.2);
 mountOnSphere(volcanicVent, 8, -10, random(0, Math.PI * 2));
-// Sink the vent slightly into the planet so its rim/rocks hug the
-// curved surface instead of floating just above the tangent plane.
-volcanicVent.position.multiplyScalar((WORLD_RADIUS - 0.8) / WORLD_RADIUS);
 scene.add(volcanicVent);
 registerFactorTarget(volcanicVent, null, VENT_FOCUS_DISTANCE);
 
-const lichens = createLichens();
-lichens.userData.factorId = "lichens";
-lichens.userData.slideId = "lichens";
-mountOnSphere(lichens, -13, 10, random(0, Math.PI * 2));
-// Sink the rock base slightly into the planet so it sits on the
-// curved surface rather than resting on the tangent plane.
-lichens.position.multiplyScalar((WORLD_RADIUS - 0.5) / WORLD_RADIUS);
-scene.add(lichens);
-registerFactorTarget(lichens, null, LICHENS_FOCUS_DISTANCE);
+// Lichens — 12 clusters spread evenly across the whole planet.
+const lichenDirs = [];
+for (let i = 0; i < 12; i++) {
+  const dir = randomWorldDirection(lichenDirs, 0.9);
+  if (!dir) break;
+  lichenDirs.push(dir);
+  const lichen = createLichens();
+  lichen.userData.factorId = "lichens";
+  lichen.userData.slideId = "lichens";
+  lichen.scale.setScalar(random(0.6, 1.8));
+  mountOnWorldSphere(lichen, dir, random(0, Math.PI * 2));
+  scene.add(lichen);
+  registerFactorTarget(lichen, null, LICHENS_FOCUS_DISTANCE);
+}
+
+// Mosses — 12 cushions dotted evenly across the whole planet.
+const mossDirs = [];
+for (let i = 0; i < 12; i++) {
+  const dir = randomWorldDirection(mossDirs, 0.9);
+  if (!dir) break;
+  mossDirs.push(dir);
+  const mossGroup = createMosses();
+  mossGroup.userData.factorId = "mosses";
+  mossGroup.userData.slideId = "mosses";
+  mossGroup.scale.setScalar(random(0.6, 1.9));
+  mountOnWorldSphere(mossGroup, dir, random(0, Math.PI * 2));
+  scene.add(mossGroup);
+  registerFactorTarget(mossGroup, null, 3.0);
+}
+
+// Microbes — glowing colonies hugging the warm slope near the crater.
+const microbes = createMicrobes();
+microbes.userData.factorId = "microbes";
+microbes.userData.slideId = "microbes";
+mountOnSphere(microbes, 5, 14, random(0, Math.PI * 2));
+scene.add(microbes);
+registerFactorTarget(microbes, null, 3.0);
+
+// Lava crickets — scattered across the dark rocky east field.
+const lavaCrickets = createLavaCrickets();
+lavaCrickets.userData.factorId = "lavaCrickets";
+lavaCrickets.userData.slideId = "lavaCrickets";
+mountOnSphere(lavaCrickets, -10, -8, random(0, Math.PI * 2));
+scene.add(lavaCrickets);
+registerFactorTarget(lavaCrickets, null, 2.8);
+
+// Volcanic longicorn beetles — long antennae glittering on the far rock.
+const volcanicLongicornBeetles = createVolcanicLongicornBeetles();
+volcanicLongicornBeetles.userData.factorId = "volcanicLongicornBeetles";
+volcanicLongicornBeetles.userData.slideId = "volcanicLongicornBeetles";
+mountOnSphere(volcanicLongicornBeetles, 11, 6, random(0, Math.PI * 2));
+scene.add(volcanicLongicornBeetles);
+registerFactorTarget(volcanicLongicornBeetles, null, 2.8);
 
 // Bind factor interaction (raycast + hover cursor + click focus)
 renderer.domElement.addEventListener("pointermove", onPointerMove);
