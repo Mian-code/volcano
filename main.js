@@ -4,58 +4,44 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 // ============================================================
 // ECOSYSTEM FACTOR DATA (centralized, easy to expand)
 // ============================================================
-// Each factor: id, title, category, description. To add a new ecosystem
+// Each factor: id, title, category. To add a new ecosystem
 // factor, append an entry here AND assign userData.factorId on its group —
 // no other interaction wiring is required.
 const ecosystemFactors = [
   {
     id: "volcano",
-    title: "Volcano",
-    category: "Abiotic",
-    description:
-      "A massive quaking cone of molten rock at the heart of the desert. Active fissures paint the slopes with rivers of fresh lava, shaping the land and feeding the vents around it."
+    title: "Volcan",
+    category: "Abiotique"
   },
   {
     id: "volcanicVent",
-    title: "Volcanic Vent",
-    category: "Abiotic",
-    description:
-      "A smoking fissure where superheated gases and minerals escape from beneath the planet's crust — a raw outlet of the ecosystem's hidden geothermal energy."
+    title: "Évent volcanique",
+    category: "Abiotique"
   },
   {
     id: "lichens",
     title: "Lichens",
-    category: "Biotic",
-    description:
-      "Hardy mutualistic organisms clinging to the warm rocks. Among the first living pioneers, they slowly break bare stone down into soil, preparing the ground for more life."
+    category: "Biotique"
   },
   {
     id: "mosses",
-    title: "Mosses",
-    category: "Biotic",
-    description:
-      "Soft green cushions tucked into sheltered hollows. They hold precious moisture against the burning rocks, letting dense patchy growth take root wherever the heat loosens its grip."
+    title: "Mousses",
+    category: "Biotique"
   },
   {
     id: "microbes",
-    title: "Microbial Colonies",
-    category: "Biotic",
-    description:
-      "Tiny extremophile bacteria and archaea that thrive in the steam-warm crevices near vents and lava. Invisible to the naked eye, they form the chemical bedrock of the whole web of life."
+    title: "Colonies microbiennes",
+    category: "Biotique"
   },
   {
     id: "lavaCrickets",
-    title: "Lava Crickets",
-    category: "Biotic",
-    description:
-      "Heat-hardy crickets that hop across the scorched rocks beside the hot zones. Their black chitin lets them blend into the dark cinders while they graze on algae and tiny lichens."
+    title: "Grillons de lave",
+    category: "Biotique"
   },
   {
     id: "volcanicLongicornBeetles",
-    title: "Volcanic Longicorn Beetles",
-    category: "Biotic",
-    description:
-      "Long-horned wood-boring beetles drawn to the warm spent timber left by lava flows. Their sweeping antennae sense heat and smoke from afar, guiding them to burnt trees where they raise their young."
+    title: "Longicornes volcaniques",
+    category: "Biotique"
   }
 ];
 
@@ -281,21 +267,21 @@ function createVolcano() {
   });
 
   const lavaMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff4400,
-    emissive: 0xff3300,
-    emissiveIntensity: 1.4,
-    roughness: 0.2,
-    metalness: 0.1,
-    flatShading: true
+    color: 0xff5500,
+    emissive: 0xff4400,
+    emissiveIntensity: 1.7,
+    roughness: 0.15,
+    metalness: 0.05,
+    flatShading: false
   });
 
   const deepLavaMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff5500,
-    emissive: 0xff4400,
-    emissiveIntensity: 1.9,
-    roughness: 0.1,
-    metalness: 0.1,
-    flatShading: true
+    color: 0xffaa22,
+    emissive: 0xff6600,
+    emissiveIntensity: 2.6,
+    roughness: 0.05,
+    metalness: 0.0,
+    flatShading: false
   });
 
   function hash(x, z) {
@@ -469,31 +455,39 @@ function createVolcano() {
 
   volcanoGroup.add(mountainMesh);
 
+  // Dark crater rim ring outlining the gaping summit hole.
+  const rimRingGeo = new THREE.TorusGeometry(2.15, 0.16, 10, 36);
+  const rimRing = new THREE.Mesh(rimRingGeo, darkRockMaterial);
+  rimRing.rotation.x = Math.PI / 2;
+  rimRing.position.set(0, height * 0.845, 0);
+  volcanoGroup.add(rimRing);
+
+  // Clean molten lava pool filling the crater mouth.
   const craterLavaGeo =
-    new THREE.CylinderGeometry(1.9, 1.9, 0.4, 24);
+    new THREE.CylinderGeometry(2.7, 2.7, 0.32, 32);
 
   const craterLavaMesh =
     new THREE.Mesh(craterLavaGeo, deepLavaMaterial);
 
   craterLavaMesh.position.set(
     0,
-    height * 0.71,
+    height * 0.79,
     0
   );
 
   volcanoGroup.add(craterLavaMesh);
 
   const lavaCoreGeo =
-    new THREE.SphereGeometry(1.5, 16, 12);
+    new THREE.SphereGeometry(2.1, 20, 14);
 
-  lavaCoreGeo.scale(1.1, 0.35, 1.1);
+  lavaCoreGeo.scale(1.0, 0.28, 1.0);
 
   const lavaCoreMesh =
-    new THREE.Mesh(lavaCoreGeo, lavaMaterial);
+    new THREE.Mesh(lavaCoreGeo, deepLavaMaterial);
 
   lavaCoreMesh.position.set(
     0,
-    height * 0.72,
+    height * 0.81,
     0
   );
 
@@ -520,7 +514,7 @@ function createVolcano() {
 
       const angle =
         startAngle +
-        Math.sin(progress * 4) * 0.15;
+        Math.sin(progress * 4) * 0.1;
 
       const x = Math.cos(angle) * r;
       const z = Math.sin(angle) * r;
@@ -562,13 +556,13 @@ function createVolcano() {
     const tubeGeo =
       new THREE.TubeGeometry(
         curve,
-        32,
-        0.35,
-        6,
+        40,
+        0.42,
+        8,
         false
       );
 
-    tubeGeo.scale(1.0, 0.35, 1.0);
+    tubeGeo.scale(1.0, 0.45, 1.0);
 
     const tubeMesh =
       new THREE.Mesh(tubeGeo, lavaMaterial);
@@ -2010,7 +2004,6 @@ function startFocusAnim(fromPos, toPos, fromTarget, toTarget) {
 // ============================================================
 const factorTitleEl = document.getElementById("factor-title");
 const factorCategoryEl = document.getElementById("factor-category");
-const factorDescriptionEl = document.getElementById("factor-description");
 const infoPanelEl = document.getElementById("info-panel");
 const closeBtnEl = document.getElementById("close-btn");
 
@@ -2018,8 +2011,7 @@ function openInfoPanel(factorId) {
   const f = factorById[factorId];
   if (!f) return;
   factorTitleEl.textContent = f.title;
-  factorCategoryEl.textContent = f.category.toUpperCase() + " FACTOR";
-  factorDescriptionEl.textContent = f.description;
+  factorCategoryEl.textContent = f.category;
   infoPanelEl.classList.remove("hidden");
   infoPanelEl.setAttribute("aria-hidden", "false");
 }
