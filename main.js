@@ -2138,7 +2138,7 @@ loadVolcanoModel()
   .then((volcano) => {
     volcano.userData.factorId = "volcano";
     volcano.userData.slideId = "volcano";
-    volcano.scale.set(VOLCANO_BASE_SCALE * 1.8, VOLCANO_HEIGHT_SCALE * 1.8, VOLCANO_BASE_SCALE * 1.8);
+    volcano.scale.set(VOLCANO_BASE_SCALE * 2.2, VOLCANO_HEIGHT_SCALE * 1.8, VOLCANO_BASE_SCALE * 2.2);
     volcano.position.set(0, VOLCANO_BASE_Y, 0);
     scene.add(volcano);
     registerFactorTarget(volcano, FOCUS_POINT, FOCUS_DISTANCE);
