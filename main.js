@@ -2105,22 +2105,16 @@ function loadVolcanoModel() {
       (gltf) => {
         const modelRoot = gltf.scene;
 
-        const toRemove = [];
-        modelRoot.traverse((o) => {
-          if (o !== modelRoot && o.name && /landscape/i.test(o.name)) {
-            toRemove.push(o);
-          }
-        });
-        toRemove.forEach((o) => {
-          if (o.parent) o.parent.remove(o);
-        });
-
         const box = new THREE.Box3().setFromObject(modelRoot);
         const size = box.getSize(new THREE.Vector3());
         const targetHeight = 12;
         modelRoot.scale.setScalar(targetHeight / Math.max(0.0001, size.y));
         box.setFromObject(modelRoot);
-        modelRoot.position.y -= box.min.y + 6;
+        modelRoot.position.set(
+          -(box.min.x + box.max.x) / 2,
+          -6 - box.min.y,
+          -(box.min.z + box.max.z) / 2
+        );
 
         const volcanoGroup = new THREE.Group();
         volcanoGroup.add(modelRoot);
