@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import volcanoModelUrl from "./volcano.glb";
 
 // ============================================================
 // ECOSYSTEM FACTOR DATA (centralized, easy to expand)
@@ -2096,15 +2098,58 @@ function animate() {
 // ============================================================
 // INITIALIZE
 // ============================================================
+function loadVolcanoModel() {
+  return new Promise((resolve, reject) => {
+    new GLTFLoader().load(
+      volcanoModelUrl,
+      (gltf) => {
+        const modelRoot = gltf.scene;
+
+        const toRemove = [];
+        modelRoot.traverse((o) => {
+          if (o !== modelRoot && o.name && /landscape/i.test(o.name)) {
+            toRemove.push(o);
+          }
+        });
+        toRemove.forEach((o) => {
+          if (o.parent) o.parent.remove(o);
+        });
+
+        const box = new THREE.Box3().setFromObject(modelRoot);
+        const size = box.getSize(new THREE.Vector3());
+        const targetHeight = 12;
+        modelRoot.scale.setScalar(targetHeight / Math.max(0.0001, size.y));
+        box.setFromObject(modelRoot);
+        modelRoot.position.y -= box.min.y + 6;
+
+        const volcanoGroup = new THREE.Group();
+        volcanoGroup.add(modelRoot);
+
+        const craterLight = new THREE.PointLight(0xff4400, 4.5, 25, 1.5);
+        craterLight.position.set(0, 10.2, 0);
+        volcanoGroup.add(craterLight);
+        volcanoCraterLight = craterLight;
+
+        resolve(volcanoGroup);
+      },
+      undefined,
+      (err) => reject(err)
+    );
+  });
+}
+
 createTerrain();
 
-const volcano = createVolcano();
-volcano.userData.factorId = "volcano";
-volcano.userData.slideId = "volcano";
-volcano.scale.set(VOLCANO_BASE_SCALE, VOLCANO_HEIGHT_SCALE, VOLCANO_BASE_SCALE);
-volcano.position.set(0, VOLCANO_BASE_Y, 0);
-scene.add(volcano);
-registerFactorTarget(volcano, FOCUS_POINT, FOCUS_DISTANCE);
+loadVolcanoModel()
+  .then((volcano) => {
+    volcano.userData.factorId = "volcano";
+    volcano.userData.slideId = "volcano";
+    volcano.scale.set(VOLCANO_BASE_SCALE, VOLCANO_HEIGHT_SCALE, VOLCANO_BASE_SCALE);
+    volcano.position.set(0, VOLCANO_BASE_Y, 0);
+    scene.add(volcano);
+    registerFactorTarget(volcano, FOCUS_POINT, FOCUS_DISTANCE);
+  })
+  .catch((err) => console.error("Volcano model load failed:", err));
 
 const volcanicVent = createVolcanicVent();
 volcanicVent.userData.factorId = "volcanicVent";
