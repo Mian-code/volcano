@@ -246,6 +246,8 @@ function createTerrain() {
     mountOnSphere(g, x, z, random(0, Math.PI * 2));
     scene.add(g);
   });
+
+  return sphere;
 }
 
 // ============================================================
@@ -2132,7 +2134,25 @@ function loadVolcanoModel() {
   });
 }
 
-createTerrain();
+function flattenTerrainAtTop(mesh, radius, levelY, blend) {
+  const pos = mesh.geometry.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    if (v.y <= 0) continue;
+    const d = Math.sqrt(v.x * v.x + v.z * v.z);
+    if (d >= radius + blend) continue;
+    let t = 1;
+    if (d > radius) t = 1 - (d - radius) / blend;
+    t = t * t * (3 - 2 * t);
+    v.y = v.y + (levelY - v.y) * t;
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  pos.needsUpdate = true;
+  mesh.geometry.computeVertexNormals();
+}
+
+const terrainMesh = createTerrain();
 
 loadVolcanoModel()
   .then((volcano) => {
@@ -2142,28 +2162,12 @@ loadVolcanoModel()
 
     const box = new THREE.Box3().setFromObject(volcano);
     const halfW = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
-    const pole = Math.asin(THREE.MathUtils.clamp(halfW / WORLD_RADIUS, 0, 1));
-    let maxH = terrainHeightAt(0, 1, 0);
-    const rings = [0.5, 0.75, 0.9, 1.0];
-    for (const frac of rings) {
-      const angle = Math.asin(
-        THREE.MathUtils.clamp((halfW * frac) / WORLD_RADIUS, 0, 1)
-      );
-      for (let k = 0; k < 24; k++) {
-        const theta = (k / 24) * Math.PI * 2;
-        const d = new THREE.Vector3(
-          Math.sin(angle) * Math.cos(theta),
-          Math.cos(angle),
-          Math.sin(angle) * Math.sin(theta)
-        ).normalize();
-        const h = terrainHeightAt(d.x, d.y, d.z);
-        if (h > maxH) maxH = h;
-      }
-    }
 
-    const baseWorldY = maxH - 1.6;
-    volcano.position.set(0, baseWorldY + 6 * volcano.scale.y, 0);
-    FOCUS_POINT.y = baseWorldY + 10;
+    const platformLevel = terrainHeightAt(0, 1, 0) - 0.4;
+    flattenTerrainAtTop(terrainMesh, halfW * 1.05, platformLevel, halfW * 0.3);
+
+    volcano.position.set(0, platformLevel + 6 * volcano.scale.y, 0);
+    FOCUS_POINT.y = platformLevel + 10;
     scene.add(volcano);
     registerFactorTarget(volcano, FOCUS_POINT, FOCUS_DISTANCE);
   })
