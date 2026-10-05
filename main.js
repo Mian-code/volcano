@@ -2142,6 +2142,29 @@ loadVolcanoModel()
     volcano.position.set(0, VOLCANO_BASE_Y, 0);
     scene.add(volcano);
     registerFactorTarget(volcano, FOCUS_POINT, FOCUS_DISTANCE);
+
+    const box = new THREE.Box3().setFromObject(volcano);
+    const halfW = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
+    const baseY = volcano.position.y - 6 * volcano.scale.y;
+
+    const skirtMat = new THREE.MeshStandardMaterial({
+      color: 0x241c12,
+      roughness: 1,
+      metalness: 0,
+      flatShading: true
+    });
+    const skirt = new THREE.Mesh(
+      new THREE.LatheGeometry(
+        [
+          new THREE.Vector2(halfW * 1.15, baseY + 1.0),
+          new THREE.Vector2(halfW * 1.15, baseY + 9.6),
+          new THREE.Vector2(halfW * 0.28, baseY + 9.6)
+        ],
+        64
+      ),
+      skirtMat
+    );
+    scene.add(skirt);
   })
   .catch((err) => console.error("Volcano model load failed:", err));
 
