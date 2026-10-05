@@ -2144,24 +2144,18 @@ loadVolcanoModel()
     const halfW = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
     const pole = Math.asin(THREE.MathUtils.clamp(halfW / WORLD_RADIUS, 0, 1));
     let maxH = terrainHeightAt(0, 1, 0);
-    const rings = [0.5, 0.75, 0.9, 1.0];
-    for (const frac of rings) {
-      const angle = Math.asin(
-        THREE.MathUtils.clamp((halfW * frac) / WORLD_RADIUS, 0, 1)
-      );
-      for (let k = 0; k < 24; k++) {
-        const theta = (k / 24) * Math.PI * 2;
-        const d = new THREE.Vector3(
-          Math.sin(angle) * Math.cos(theta),
-          Math.cos(angle),
-          Math.sin(angle) * Math.sin(theta)
-        ).normalize();
-        const h = terrainHeightAt(d.x, d.y, d.z);
-        if (h > maxH) maxH = h;
-      }
+    for (let k = 0; k < 16; k++) {
+      const theta = (k / 16) * Math.PI * 2;
+      const d = new THREE.Vector3(
+        Math.sin(pole) * Math.cos(theta),
+        Math.cos(pole),
+        Math.sin(pole) * Math.sin(theta)
+      ).normalize();
+      const h = terrainHeightAt(d.x, d.y, d.z);
+      if (h > maxH) maxH = h;
     }
 
-    const baseWorldY = maxH - 1.6;
+    const baseWorldY = maxH - 1.2;
     volcano.position.set(0, baseWorldY + 6 * volcano.scale.y, 0);
     FOCUS_POINT.y = baseWorldY + 10;
     scene.add(volcano);
