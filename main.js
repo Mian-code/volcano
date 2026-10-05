@@ -88,6 +88,9 @@ controls.maxPolarAngle = Math.PI * 0.85;
 controls.minDistance = 12;
 controls.maxDistance = 170;
 
+const STARTUP_POS = camera.position.clone();
+const STARTUP_TARGET = controls.target.clone();
+
 // ============================================================
 // LIGHTING (bright desert day)
 // ============================================================
@@ -2014,17 +2017,26 @@ function openInfoPanel(factorId) {
   if (!f) return;
   factorTitleEl.textContent = f.title;
   factorCategoryEl.textContent = f.category;
+  infoPanelEl.classList.remove("hiding");
   infoPanelEl.classList.remove("hidden");
   infoPanelEl.setAttribute("aria-hidden", "false");
 }
 
+let infoPanelCloseTimer = null;
+
 function closeInfoPanel() {
-  infoPanelEl.classList.add("hidden");
+  if (infoPanelEl.classList.contains("hidden")) return;
+  infoPanelEl.classList.add("hiding");
   infoPanelEl.setAttribute("aria-hidden", "true");
+  clearTimeout(infoPanelCloseTimer);
+  infoPanelCloseTimer = setTimeout(() => {
+    infoPanelEl.classList.add("hidden");
+    infoPanelEl.classList.remove("hiding");
+  }, 360);
 }
 
-// Close (X): hide panel only. Camera focus is deliberately untouched so the
-// visitor stays looking at the factor and OrbitControls keeps working.
+// Close (X): fade the panel out only. Camera focus is deliberately untouched so
+// the visitor stays looking at the factor and OrbitControls keeps working.
 closeBtnEl.addEventListener("click", closeInfoPanel);
 
 function toggleFocus(group) {
@@ -2045,11 +2057,11 @@ function toggleFocus(group) {
     focusState.targetGroup = group;
     openInfoPanel(group.userData.factorId);
   } else {
-    const saved = focusState.saved;
-    startFocusAnim(camera.position, saved.pos, controls.target, saved.target);
+    startFocusAnim(camera.position, STARTUP_POS, controls.target, STARTUP_TARGET);
     focusState.saved = null;
     focusState.active = false;
     focusState.targetGroup = null;
+    closeInfoPanel();
   }
 }
 
