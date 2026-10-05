@@ -2139,25 +2139,7 @@ loadVolcanoModel()
     volcano.userData.factorId = "volcano";
     volcano.userData.slideId = "volcano";
     volcano.scale.set(VOLCANO_BASE_SCALE * 2.2, VOLCANO_HEIGHT_SCALE * 1.8, VOLCANO_BASE_SCALE * 2.2);
-
-    const box = new THREE.Box3().setFromObject(volcano);
-    const halfW = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
-    const pole = Math.asin(THREE.MathUtils.clamp(halfW / WORLD_RADIUS, 0, 1));
-    let maxH = terrainHeightAt(0, 1, 0);
-    for (let k = 0; k < 16; k++) {
-      const theta = (k / 16) * Math.PI * 2;
-      const d = new THREE.Vector3(
-        Math.sin(pole) * Math.cos(theta),
-        Math.cos(pole),
-        Math.sin(pole) * Math.sin(theta)
-      ).normalize();
-      const h = terrainHeightAt(d.x, d.y, d.z);
-      if (h > maxH) maxH = h;
-    }
-
-    const baseWorldY = maxH - 1.2;
-    volcano.position.set(0, baseWorldY + 6 * volcano.scale.y, 0);
-    FOCUS_POINT.y = baseWorldY + 10;
+    volcano.position.set(0, VOLCANO_BASE_Y, 0);
     scene.add(volcano);
     registerFactorTarget(volcano, FOCUS_POINT, FOCUS_DISTANCE);
   })
