@@ -2077,8 +2077,15 @@ function toggleFocus(group) {
       pos: camera.position.clone(),
       target: controls.target.clone()
     };
-    const offset = camera.position.clone().sub(PLANET_CENTER).normalize();
-    const toPos = target.focusPoint.clone().add(offset.multiplyScalar(target.focusDistance));
+    const toPos = target.focusPoint
+      .clone()
+      .add(
+        target.focusPoint
+          .clone()
+          .sub(PLANET_CENTER)
+          .normalize()
+          .multiplyScalar(target.focusDistance)
+      );
     startFocusAnim(camera.position, toPos, controls.target, target.focusPoint.clone());
     focusState.active = true;
     focusState.targetGroup = group;
@@ -2122,8 +2129,22 @@ function animate() {
   if (focusState.animating) {
     focusState.t += dt / focusState.duration;
     const ease = easeInOutCubic(Math.min(focusState.t, 1));
-    camera.position.lerpVectors(focusState.fromPos, focusState.toPos, ease);
-    controls.target.lerpVectors(focusState.fromTarget, focusState.toTarget, ease);
+    const dir = focusState.fromPos
+      .clone()
+      .sub(PLANET_CENTER)
+      .normalize()
+      .slerp(
+        focusState.toPos.clone().sub(PLANET_CENTER).normalize(),
+        ease
+      )
+      .normalize();
+      const r = THREE.MathUtils.lerp(
+        focusState.fromPos.length(),
+        focusState.toPos.length(),
+        ease
+      );
+      camera.position.copy(dir).multiplyScalar(Math.max(r, 33));
+      controls.target.lerpVectors(focusState.fromTarget, focusState.toTarget, ease);
     if (focusState.t >= 1) {
       focusState.t = 0;
       focusState.animating = false;
