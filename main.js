@@ -2039,6 +2039,33 @@ function closeInfoPanel() {
 // the visitor stays looking at the factor and OrbitControls keeps working.
 closeBtnEl.addEventListener("click", closeInfoPanel);
 
+// ============================================================
+// NUMBER BAR (one number per distinct factor, no repeats)
+// ============================================================
+const factorBarEl = document.getElementById("factor-bar");
+const numberButtons = [];
+
+function buildNumberBar() {
+  ecosystemFactors.forEach((f, i) => {
+    const target = factorTargets.find((t) => t.factorId === f.id && t.group);
+    if (!target) return;
+    const btn = document.createElement("button");
+    btn.className = "factor-number";
+    btn.textContent = String(i + 1);
+    btn.title = f.title;
+    btn.setAttribute("aria-label", f.title);
+    btn.addEventListener("click", () => toggleFocus(target.group));
+    factorBarEl.appendChild(btn);
+    numberButtons.push({ btn, factorId: f.id });
+  });
+}
+
+function highlightNumber(factorId) {
+  numberButtons.forEach(({ btn, factorId: id }) => {
+    btn.classList.toggle("active", id === factorId);
+  });
+}
+
 function toggleFocus(group) {
   const target = factorTargets.find(
     (t) => t.group === group && t.factorId === group.userData.factorId
@@ -2056,12 +2083,14 @@ function toggleFocus(group) {
     focusState.active = true;
     focusState.targetGroup = group;
     openInfoPanel(group.userData.factorId);
+    highlightNumber(group.userData.factorId);
   } else {
     startFocusAnim(camera.position, STARTUP_POS, controls.target, STARTUP_TARGET);
     focusState.saved = null;
     focusState.active = false;
     focusState.targetGroup = null;
     closeInfoPanel();
+    highlightNumber(null);
   }
 }
 
@@ -2154,6 +2183,7 @@ loadVolcanoModel()
     volcano.position.set(0, VOLCANO_BASE_Y, 0);
     scene.add(volcano);
     registerFactorTarget(volcano, FOCUS_POINT, FOCUS_DISTANCE);
+    buildNumberBar();
   })
   .catch((err) => console.error("Volcano model load failed:", err));
 
