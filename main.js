@@ -2167,6 +2167,21 @@ function loadVolcanoModel() {
       (gltf) => {
         const modelRoot = gltf.scene;
 
+        modelRoot.traverse((o) => {
+          if (!o.isMesh) return;
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          mats.forEach((m) => {
+            m.map = null;
+            m.vertexColors = false;
+            m.color = new THREE.Color(0x2a2118);
+            if (m.emissive) m.emissive.setHex(0x000000);
+            if (m.emissiveMap) m.emissiveMap = null;
+            m.metalness = 0;
+            m.roughness = 1;
+            m.needsUpdate = true;
+          });
+        });
+
         const box = new THREE.Box3().setFromObject(modelRoot);
         const size = box.getSize(new THREE.Vector3());
         const targetHeight = 12;
