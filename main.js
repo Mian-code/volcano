@@ -2171,6 +2171,8 @@ function loadVolcanoModel() {
           if (!o.isMesh) return;
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           mats.forEach((m) => {
+            // leave emissive (lava) materials untouched
+            if (m.emissive && m.emissive.getHex() !== 0) return;
             m.map = null;
             m.vertexColors = false;
             m.color = new THREE.Color(0x2a2118);
