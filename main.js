@@ -2070,6 +2070,233 @@ function highlightNumber(factorId) {
   });
 }
 
+// ============================================================
+// PRIMARY SUCCESSION (éruption puis retour de la vie)
+// ============================================================
+const successionToggleEl = document.getElementById("succession-toggle");
+
+const SUCCESSION_ERUPTION = 5;
+const SUCCESSION_TOTAL = 36;
+const SUCCESSION_WINDOWS = {
+  microbes: [9, 14],
+  lichens: [13, 19],
+  mosses: [18, 26],
+  lavaCrickets: [25, 30],
+  volcanicLongicornBeetles: [28, 34]
+};
+
+const successionState = {
+  active: false,
+  done: false,
+  t: 0,
+  records: [],
+  lavaMats: [],
+  craterPos: new THREE.Vector3(0, VOLCANO_BASE_Y + 17, 0),
+  smoke: null
+};
+
+function createSmokeTexture() {
+  const c = document.createElement("canvas");
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext("2d");
+  const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, "rgba(255,255,255,0.9)");
+  grad.addColorStop(0.4, "rgba(255,255,255,0.35)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+
+function createSuccessionSmoke() {
+  const count = 70;
+  const pos = new Float32Array(count * 3);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 3,
+    map: createSmokeTexture(),
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    color: 0x8f8177,
+    sizeAttenuation: true
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  pts.visible = false;
+  scene.add(pts);
+  const phases = [];
+  const speeds = [];
+  for (let i = 0; i < count; i++) {
+    phases.push(Math.random());
+    speeds.push(0.5 + Math.random() * 0.7);
+  }
+  return { pts, geo, mat, pos, count, phases, speeds };
+}
+
+function buildSuccessionRecords() {
+  if (successionState.records.length > 0) return;
+  const seen = new Set();
+  factorTargets.forEach((t) => {
+    const g = t.group;
+    if (!g || seen.has(g)) return;
+    seen.add(g);
+    const mats = [];
+    g.traverse((o) => {
+      if (!o.isMesh) return;
+      const arr = Array.isArray(o.material) ? o.material : [o.material];
+      arr.forEach((m) => {
+        if (!mats.some((x) => x.mat === m)) {
+          mats.push({ mat: m, opacity: m.opacity, transparent: m.transparent });
+        }
+      });
+    });
+    successionState.records.push({
+      group: g,
+      factorId: g.userData.factorId,
+      pos: g.position.clone(),
+      scale: g.scale.clone(),
+      dir:
+        g.position.lengthSq() > 1e-6
+          ? g.position.clone().normalize()
+          : new THREE.Vector3(0, 1, 0),
+      mats,
+      idx: 0,
+      count: 1
+    });
+  });
+  Object.keys(SUCCESSION_WINDOWS).forEach((fid) => {
+    const list = successionState.records.filter((r) => r.factorId === fid);
+    list.forEach((r, i) => {
+      r.idx = i;
+      r.count = list.length;
+    });
+  });
+}
+
+function successionProgress(rec) {
+  const w = SUCCESSION_WINDOWS[rec.factorId];
+  if (!w) return 1;
+  const span = w[1] - w[0];
+  const stagger = (span * 0.45) / Math.max(1, rec.count);
+  return THREE.MathUtils.clamp(
+    (successionState.t - (w[0] + stagger * rec.idx)) / span,
+    0,
+    1
+  );
+}
+
+function resetSuccessionGroups() {
+  successionState.records.forEach((r) => {
+    r.group.visible = true;
+    r.group.position.copy(r.pos);
+    r.group.scale.copy(r.scale);
+    r.mats.forEach((x) => {
+      x.mat.opacity = x.opacity;
+      x.mat.transparent = x.transparent;
+    });
+  });
+}
+
+function endEruptionGlow() {
+  successionState.lavaMats.forEach((x) => {
+    x.mat.emissiveIntensity = x.base;
+  });
+  if (successionState.smoke) {
+    successionState.smoke.pts.visible = false;
+    successionState.smoke.mat.opacity = 0;
+  }
+}
+
+function startSuccession() {
+  buildSuccessionRecords();
+  successionState.active = true;
+  successionState.done = false;
+  successionState.t = 0;
+  resetSuccessionGroups();
+  successionState.records.forEach((r) => {
+    if (SUCCESSION_WINDOWS[r.factorId]) r.group.visible = false;
+  });
+  successionToggleEl.classList.add("active");
+}
+
+function stopSuccession() {
+  successionState.active = false;
+  successionState.done = false;
+  successionState.t = 0;
+  resetSuccessionGroups();
+  endEruptionGlow();
+  successionToggleEl.classList.remove("active");
+}
+
+successionToggleEl.addEventListener("click", () => {
+  if (successionState.active) {
+    stopSuccession();
+  } else {
+    startSuccession();
+  }
+});
+
+function updateSuccession(dt) {
+  successionState.t += dt;
+  const t = successionState.t;
+
+  const u = Math.min(t / SUCCESSION_ERUPTION, 1);
+  const env = t < SUCCESSION_ERUPTION ? Math.pow(Math.sin(Math.PI * u), 0.6) : 0;
+
+  if (volcanoCraterLight) {
+    volcanoCraterLight.intensity *= 1 + 7 * env;
+  }
+  successionState.lavaMats.forEach((x) => {
+    x.mat.emissiveIntensity = x.base * (1 + 5 * env);
+  });
+
+  const sm = successionState.smoke;
+  if (sm && (sm.pts.visible || env > 0.01)) {
+    sm.pts.visible = env > 0.01;
+    const o = successionState.craterPos;
+    for (let i = 0; i < sm.count; i++) {
+      const ph = (t * sm.speeds[i] * 0.55 + sm.phases[i]) % 1;
+      const spread = 0.6 + ph * 3.4;
+      const a = sm.phases[i] * Math.PI * 2;
+      sm.pos[i * 3] =
+        o.x + Math.cos(a) * spread * 0.5 + Math.sin(t * 1.3 + i) * 0.35;
+      sm.pos[i * 3 + 1] = o.y + ph * 15;
+      sm.pos[i * 3 + 2] =
+        o.z + Math.sin(a) * spread * 0.5 + Math.cos(t * 1.1 + i) * 0.35;
+    }
+    sm.geo.attributes.position.needsUpdate = true;
+    sm.mat.opacity = env * 0.75;
+    sm.mat.size = 2.2 + env * 2.6;
+  }
+
+  successionState.records.forEach((r) => {
+    if (!SUCCESSION_WINDOWS[r.factorId]) return;
+    const p = successionProgress(r);
+    if (p <= 0) {
+      r.group.visible = false;
+      return;
+    }
+    const e = 1 - Math.pow(1 - p, 3);
+    r.group.visible = true;
+    const s = 0.04 + 0.96 * e;
+    r.group.scale.set(r.scale.x * s, r.scale.y * s, r.scale.z * s);
+    r.group.position.copy(r.pos).addScaledVector(r.dir, (1 - e) * 1.6);
+    r.mats.forEach((x) => {
+      x.mat.opacity = e;
+      x.mat.transparent = e < 1;
+    });
+  });
+
+  if (t >= SUCCESSION_TOTAL) {
+    successionState.done = true;
+    resetSuccessionGroups();
+    endEruptionGlow();
+  }
+}
+
 function toggleFocus(group) {
   const target = factorTargets.find(
     (t) => t.group === group && t.factorId === group.userData.factorId
@@ -2130,6 +2357,10 @@ function animate() {
       Math.cos(volcanoPulseTime * 7.0) * 0.3;
   }
 
+  if (successionState.active && !successionState.done) {
+    updateSuccession(dt);
+  }
+
   if (focusState.animating) {
     focusState.t += dt / focusState.duration;
     const ease = easeInOutCubic(Math.min(focusState.t, 1));
@@ -2184,7 +2415,13 @@ function loadVolcanoModel() {
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           mats.forEach((m) => {
             // leave emissive (lava) materials untouched
-            if (m.emissive && m.emissive.getHex() !== 0) return;
+            if (m.emissive && m.emissive.getHex() !== 0) {
+              successionState.lavaMats.push({
+                mat: m,
+                base: m.emissiveIntensity ?? 1
+              });
+              return;
+            }
             m.map = null;
             m.vertexColors = false;
             m.color = new THREE.Color(0x2a2118);
@@ -2234,6 +2471,13 @@ loadVolcanoModel()
     scene.add(volcano);
     registerFactorTarget(volcano, FOCUS_POINT, FOCUS_DISTANCE);
     buildNumberBar();
+
+    successionState.craterPos = new THREE.Vector3(
+      0,
+      volcano.position.y + 10.2 * volcano.scale.y,
+      0
+    );
+    successionState.smoke = createSuccessionSmoke();
   })
   .catch((err) => console.error("Volcano model load failed:", err));
 
