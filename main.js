@@ -2283,7 +2283,9 @@ function updateSuccession(dt) {
     r.group.visible = true;
     const s = 0.04 + 0.96 * e;
     r.group.scale.set(r.scale.x * s, r.scale.y * s, r.scale.z * s);
-    r.group.position.copy(r.pos).addScaledVector(r.dir, (1 - e) * 1.6);
+    // grow in place: no outward offset, so growing organisms never
+    // intersect neighbours or terrain
+    r.group.position.copy(r.pos);
     r.mats.forEach((x) => {
       x.mat.opacity = e;
       x.mat.transparent = e < 1;
