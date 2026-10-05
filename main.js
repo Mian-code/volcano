@@ -1942,7 +1942,11 @@ const focusState = {
   toPos: new THREE.Vector3(),
   fromTarget: new THREE.Vector3(),
   toTarget: new THREE.Vector3(),
-  saved: null
+  saved: null,
+  q: new THREE.Quaternion(),
+  qTmp: new THREE.Quaternion(),
+  dirTmp: new THREE.Vector3(),
+  toDirTmp: new THREE.Vector3()
 };
 
 function easeInOutCubic(x) {
@@ -2129,22 +2133,30 @@ function animate() {
   if (focusState.animating) {
     focusState.t += dt / focusState.duration;
     const ease = easeInOutCubic(Math.min(focusState.t, 1));
-    const dir = focusState.fromPos
-      .clone()
+
+    const fromDir = focusState.dirTmp
+      .copy(focusState.fromPos)
       .sub(PLANET_CENTER)
-      .normalize()
-      .slerp(
-        focusState.toPos.clone().sub(PLANET_CENTER).normalize(),
-        ease
-      )
       .normalize();
-      const r = THREE.MathUtils.lerp(
-        focusState.fromPos.length(),
-        focusState.toPos.length(),
-        ease
-      );
-      camera.position.copy(dir).multiplyScalar(Math.max(r, 33));
-      controls.target.lerpVectors(focusState.fromTarget, focusState.toTarget, ease);
+    const toDir = focusState.toDirTmp
+      .copy(focusState.toPos)
+      .sub(PLANET_CENTER)
+      .normalize();
+
+    // slerp between the two directions (Quaternion, not Vector3) so the
+    // camera arcs around the planet instead of cutting through it
+    focusState.q.setFromUnitVectors(fromDir, toDir);
+    focusState.qTmp.identity().slerp(focusState.q, ease);
+    const dir = fromDir.applyQuaternion(focusState.qTmp);
+
+    const r = THREE.MathUtils.lerp(
+      focusState.fromPos.length(),
+      focusState.toPos.length(),
+      ease
+    );
+    camera.position.copy(dir).multiplyScalar(Math.max(r, 33));
+    controls.target.lerpVectors(focusState.fromTarget, focusState.toTarget, ease);
+
     if (focusState.t >= 1) {
       focusState.t = 0;
       focusState.animating = false;
